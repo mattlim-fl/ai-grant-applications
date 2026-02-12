@@ -37,11 +37,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes - redirect to login if not authenticated
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login") || 
-                      request.nextUrl.pathname.startsWith("/signup");
-  const isApiRoute = request.nextUrl.pathname.startsWith("/api");
-  const isPublicRoute = request.nextUrl.pathname === "/";
+  // Define route types
+  const pathname = request.nextUrl.pathname;
+  const isAuthRoute = 
+    pathname.startsWith("/login") || 
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/auth/callback");
+  const isApiRoute = pathname.startsWith("/api");
 
   if (!user && !isAuthRoute && !isApiRoute) {
     // Not logged in, redirect to login
@@ -50,7 +54,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthRoute) {
+  // Only redirect away from login/signup if logged in (not forgot/reset password)
+  const isLoginOrSignup = pathname.startsWith("/login") || pathname.startsWith("/signup");
+  if (user && isLoginOrSignup) {
     // Already logged in, redirect to dashboard
     const url = request.nextUrl.clone();
     url.pathname = "/";

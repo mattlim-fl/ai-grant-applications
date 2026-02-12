@@ -3,28 +3,41 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Anchor, Loader2 } from "lucide-react";
+import { Anchor, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
     });
 
     if (error) {
@@ -33,9 +46,34 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
-    router.refresh();
+    setSuccess(true);
+    setLoading(false);
   };
+
+  if (success) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle className="h-6 w-6 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-semibold text-slate-900">Check your email</h1>
+          <p className="mt-2 text-slate-500">
+            We've sent a confirmation link to <strong>{email}</strong>
+          </p>
+          <p className="mt-4 text-sm text-slate-400">
+            Click the link in the email to activate your account.
+          </p>
+          <Link
+            href="/login"
+            className="mt-6 inline-block text-ocean hover:underline"
+          >
+            Back to login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4">
@@ -46,13 +84,32 @@ export default function LoginPage() {
             <Anchor className="h-6 w-6" />
           </div>
           <h1 className="mt-4 text-2xl font-semibold text-slate-900">
-            Shadwell Basin
+            Create an account
           </h1>
-          <p className="mt-1 text-slate-500">Grant Assistant</p>
+          <p className="mt-1 text-slate-500">Join Shadwell Basin Grant Assistant</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleSignup} className="space-y-4">
+          <div>
+            <label
+              htmlFor="fullName"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Full name
+            </label>
+            <Input
+              id="fullName"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Mike Wardle"
+              required
+              autoComplete="name"
+              className="w-full"
+            />
+          </div>
+
           <div>
             <label
               htmlFor="email"
@@ -73,20 +130,12 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-slate-700"
-              >
-                Password
-              </label>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-ocean hover:underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            <label
+              htmlFor="password"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Password
+            </label>
             <Input
               id="password"
               type="password"
@@ -94,9 +143,12 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              autoComplete="current-password"
+              autoComplete="new-password"
               className="w-full"
             />
+            <p className="mt-1 text-xs text-slate-500">
+              Must be at least 6 characters
+            </p>
           </div>
 
           {error && (
@@ -113,19 +165,19 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                Creating account...
               </>
             ) : (
-              "Sign in"
+              "Create account"
             )}
           </Button>
         </form>
 
         {/* Footer */}
         <p className="mt-8 text-center text-sm text-slate-500">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-ocean hover:underline">
-            Sign up
+          Already have an account?{" "}
+          <Link href="/login" className="text-ocean hover:underline">
+            Sign in
           </Link>
         </p>
       </div>
