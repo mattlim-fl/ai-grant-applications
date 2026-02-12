@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// GET /api/projects - List all projects
+// Helper to get current organization ID
+async function getCurrentOrgId(supabase: any, userId: string): Promise<string | null> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("current_organization_id")
+    .eq("id", userId)
+    .single();
+  
+  return profile?.current_organization_id || null;
+}
+
+// GET /api/projects - List all projects for current organization
 export async function GET() {
   const supabase = await createClient();
   
@@ -14,6 +25,15 @@ export async function GET() {
     );
   }
 
+  // Get current organization
+  const orgId = await getCurrentOrgId(supabase, user.id);
+  if (!orgId) {
+    return NextResponse.json(
+      { data: null, error: { message: "No organization selected", code: "NO_ORG" } },
+      { status: 400 }
+    );
+  }
+
   // Fetch projects with document count
   const { data: projects, error } = await supabase
     .from("projects")
@@ -21,6 +41,7 @@ export async function GET() {
       *,
       documents:documents(count)
     `)
+    .eq("organization_id", orgId)
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -53,6 +74,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // Get current organization
+  const orgId = await getCurrentOrgId(supabase, user.id);
+  if (!orgId) {
+    return NextResponse.json(
+      { data: null, error: { message: "No organization selected", code: "NO_ORG" } },
+      { status: 400 }
+    );
+  }
+
   // Parse body
   const body = await request.json();
   const { name, funder, deadline, sections } = body;
@@ -68,6 +98,7 @@ export async function POST(request: Request) {
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .insert({
+      organization_id: orgId,
       name: name.trim(),
       funder: funder?.trim() || null,
       deadline: deadline || null,

@@ -29,38 +29,67 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // IMPORTANT: Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Define route types
   const pathname = request.nextUrl.pathname;
+  
+  // Public routes that don't require auth
   const isAuthRoute = 
     pathname.startsWith("/login") || 
     pathname.startsWith("/signup") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/auth/callback");
+  
   const isApiRoute = pathname.startsWith("/api");
+  const isOnboardingRoute = pathname.startsWith("/onboarding");
 
+  // Not logged in and trying to access protected route
   if (!user && !isAuthRoute && !isApiRoute) {
-    // Not logged in, redirect to login
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Only redirect away from login/signup if logged in (not forgot/reset password)
+  // Logged in and trying to access login/signup
   const isLoginOrSignup = pathname.startsWith("/login") || pathname.startsWith("/signup");
   if (user && isLoginOrSignup) {
-    // Already logged in, redirect to dashboard
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
+  }
+
+  // Check if user needs onboarding (has no organization)
+  if (user && !isAuthRoute && !isApiRoute && !isOnboardingRoute) {
+    // Check for organization membership
+    const { data: memberships } = await supabase
+      .from("organization_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1);
+
+    if (!memberships || memberships.length === 0) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // User is on onboarding but already has an org - redirect to dashboard
+  if (user && isOnboardingRoute) {
+    const { data: memberships } = await supabase
+      .from("organization_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1);
+
+    if (memberships && memberships.length > 0) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

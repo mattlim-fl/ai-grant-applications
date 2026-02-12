@@ -12,11 +12,58 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      organizations: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      organization_members: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string;
+          role: "owner" | "admin" | "member";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          user_id: string;
+          role?: "owner" | "admin" | "member";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          user_id?: string;
+          role?: "owner" | "admin" | "member";
+          created_at?: string;
+        };
+      };
       profiles: {
         Row: {
           id: string;
           full_name: string | null;
           role: "admin" | "member";
+          current_organization_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -24,6 +71,7 @@ export interface Database {
           id: string;
           full_name?: string | null;
           role?: "admin" | "member";
+          current_organization_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +79,7 @@ export interface Database {
           id?: string;
           full_name?: string | null;
           role?: "admin" | "member";
+          current_organization_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -38,6 +87,7 @@ export interface Database {
       projects: {
         Row: {
           id: string;
+          organization_id: string | null;
           name: string;
           funder: string | null;
           deadline: string | null;
@@ -48,6 +98,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           name: string;
           funder?: string | null;
           deadline?: string | null;
@@ -58,6 +109,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           name?: string;
           funder?: string | null;
           deadline?: string | null;
@@ -99,6 +151,7 @@ export interface Database {
       knowledge_files: {
         Row: {
           id: string;
+          organization_id: string | null;
           filename: string;
           file_path: string;
           file_size: number | null;
@@ -111,6 +164,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           filename: string;
           file_path: string;
           file_size?: number | null;
@@ -123,6 +177,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           filename?: string;
           file_path?: string;
           file_size?: number | null;
@@ -179,7 +234,16 @@ export interface Database {
       };
     };
     Views: {};
-    Functions: {};
+    Functions: {
+      is_org_member: {
+        Args: { org_id: string };
+        Returns: boolean;
+      };
+      get_current_org_id: {
+        Args: Record<string, never>;
+        Returns: string | null;
+      };
+    };
     Enums: {};
   };
 }
@@ -193,6 +257,8 @@ export type UpdateTables<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Update"];
 
 // Convenience types
+export type Organization = Tables<"organizations">;
+export type OrganizationMember = Tables<"organization_members">;
 export type Profile = Tables<"profiles">;
 export type Project = Tables<"projects">;
 export type Document = Tables<"documents">;
