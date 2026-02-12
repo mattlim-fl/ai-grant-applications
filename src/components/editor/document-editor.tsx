@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Copy, Download, Check, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Document } from "@/lib/mock-data";
+import type { Document } from "@/types/database";
 
 interface DocumentEditorProps {
   document: Document | null;
@@ -17,27 +17,38 @@ export function DocumentEditor({ document, onContentChange }: DocumentEditorProp
   const [showPreview, setShowPreview] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastSavedContent = useRef(document?.content || "");
 
   // Update content when document changes
   useEffect(() => {
     setContent(document?.content || "");
+    lastSavedContent.current = document?.content || "";
     setSaveStatus("saved");
   }, [document?.id]);
 
-  // Auto-save simulation
-  useEffect(() => {
-    if (content !== document?.content) {
+  // Handle content changes with save status
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
+    
+    if (newContent !== lastSavedContent.current) {
       setSaveStatus("unsaved");
-      const timeout = setTimeout(() => {
+    }
+    
+    // Notify parent (which will debounce the actual save)
+    onContentChange?.(newContent);
+    
+    // Optimistically show "saving" after a brief delay
+    setTimeout(() => {
+      if (newContent !== lastSavedContent.current) {
         setSaveStatus("saving");
+        // Then show "saved" after the debounce would have completed
         setTimeout(() => {
           setSaveStatus("saved");
-          onContentChange?.(content);
-        }, 500);
-      }, 1000);
-      return () => clearTimeout(timeout);
-    }
-  }, [content]);
+          lastSavedContent.current = newContent;
+        }, 1000);
+      }
+    }, 500);
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -132,7 +143,7 @@ export function DocumentEditor({ document, onContentChange }: DocumentEditorProp
           <textarea
             ref={textareaRef}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => handleContentChange(e.target.value)}
             placeholder="Start writing..."
             className="h-full w-full resize-none bg-white p-6 font-mono text-sm leading-relaxed text-slate-700 placeholder:text-slate-400 focus:outline-none"
           />
@@ -143,7 +154,7 @@ export function DocumentEditor({ document, onContentChange }: DocumentEditorProp
       <div className="flex items-center justify-between border-t border-slate-200 px-6 py-2 text-xs text-slate-400">
         <span>{wordCount} words</span>
         <span>
-          {saveStatus === "saved" && "Saved"}
+          {saveStatus === "saved" && "✓ Saved"}
           {saveStatus === "saving" && "Saving..."}
           {saveStatus === "unsaved" && "Unsaved changes"}
         </span>
@@ -164,9 +175,12 @@ function MarkdownPreview({ content }: { content: string }) {
       if (block.startsWith("## ")) {
         return `<h2 class="text-xl font-semibold mb-3">${block.slice(3)}</h2>`;
       }
-      if (block.startsWith("- ") || block.startsWith("• ")) {
+      if (block.startsWith("### ")) {
+        return `<h3 class="text-lg font-semibold mb-2">${block.slice(4)}</h3>`;
+      }
+      if (block.startsWith("- ") || block.startsWith("• ") || block.startsWith("* ")) {
         const items = block.split("\n").map((line) => {
-          const text = line.replace(/^[-•]\s*/, "");
+          const text = line.replace(/^[-•*]\s*/, "");
           return `<li>${text}</li>`;
         });
         return `<ul class="list-disc pl-5 mb-4 space-y-1">${items.join("")}</ul>`;

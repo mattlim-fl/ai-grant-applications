@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, Plus, Check } from "lucide-react";
+import { ArrowLeft, Plus, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useProjects } from "@/hooks";
 import { cn } from "@/lib/utils";
 
 const defaultSections = [
@@ -20,6 +21,8 @@ const defaultSections = [
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const { createProject } = useProjects();
+  
   const [name, setName] = useState("");
   const [funder, setFunder] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -29,6 +32,8 @@ export default function NewProjectPage() {
     "project",
     "budget",
   ]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const toggleSection = (id: string) => {
     setSelectedSections((prev) =>
@@ -36,10 +41,28 @@ export default function NewProjectPage() {
     );
   };
 
-  const handleCreate = () => {
-    // In real implementation, this would create the project in the database
-    // For now, just redirect to the first mock project
-    router.push("/projects/1");
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      setError("Project name is required");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const project = await createProject({
+      name: name.trim(),
+      funder: funder.trim() || undefined,
+      deadline: deadline || undefined,
+      sections: selectedSections,
+    });
+
+    if (project) {
+      router.push(`/projects/${project.id}`);
+    } else {
+      setError("Failed to create project");
+      setLoading(false);
+    }
   };
 
   return (
@@ -177,15 +200,31 @@ export default function NewProjectPage() {
               </div>
             </div>
 
+            {/* Error */}
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-3 pt-4">
               <Button
                 onClick={handleCreate}
-                disabled={!name.trim()}
+                disabled={!name.trim() || loading}
                 className="gap-2 bg-ocean hover:bg-ocean-dark"
               >
-                <Plus className="h-4 w-4" />
-                Create Project
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Create Project
+                  </>
+                )}
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/">Cancel</Link>

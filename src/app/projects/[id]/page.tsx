@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Calendar, MoreHorizontal, Loader2, MessageSquare, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Header } from "@/components/layout/header";
 import { ChatPanel } from "@/components/layout/chat-panel";
 import { DocumentList } from "@/components/editor/document-list";
 import { DocumentEditor } from "@/components/editor/document-editor";
-import { MessageSquare } from "lucide-react";
-import { mockProjects, mockDocuments, Document } from "@/lib/mock-data";
+import { useProject } from "@/hooks";
 import { cn } from "@/lib/utils";
 
 const statusStyles = {
@@ -24,6 +24,7 @@ const statusStyles = {
   submitted: "bg-blue-100 text-blue-700",
   successful: "bg-green-100 text-green-700",
   unsuccessful: "bg-red-100 text-red-700",
+  archived: "bg-gray-100 text-gray-600",
 };
 
 const statusLabels = {
@@ -31,6 +32,7 @@ const statusLabels = {
   submitted: "Submitted",
   successful: "Successful",
   unsuccessful: "Unsuccessful",
+  archived: "Archived",
 };
 
 export default function ProjectPage() {
@@ -38,43 +40,75 @@ export default function ProjectPage() {
   const router = useRouter();
   const projectId = params.id as string;
 
-  const project = mockProjects.find((p) => p.id === projectId);
-  const documents = mockDocuments[projectId] || [];
+  const {
+    project,
+    loading,
+    error,
+    updateDocument,
+    addDocument,
+    deleteDocument,
+  } = useProject(projectId);
 
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(
-    documents[0]?.id || null
-  );
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
-  const [localDocuments, setLocalDocuments] = useState<Document[]>(documents);
 
-  const activeDocument = localDocuments.find((d) => d.id === activeDocumentId) || null;
+  // Set active document to first one when project loads
+  useEffect(() => {
+    if (project?.documents?.length && !activeDocumentId) {
+      setActiveDocumentId(project.documents[0].id);
+    }
+  }, [project?.documents, activeDocumentId]);
+
+  const activeDocument = project?.documents?.find((d) => d.id === activeDocumentId) || null;
 
   const handleInsertFromChat = useCallback((content: string) => {
-    if (!activeDocumentId) return;
+    if (!activeDocumentId || !activeDocument) return;
 
-    setLocalDocuments((docs) =>
-      docs.map((doc) =>
-        doc.id === activeDocumentId
-          ? { ...doc, content: doc.content + "\n\n" + content }
-          : doc
-      )
-    );
-  }, [activeDocumentId]);
+    const newContent = activeDocument.content 
+      ? activeDocument.content + "\n\n" + content 
+      : content;
+    
+    updateDocument(activeDocumentId, { content: newContent });
+  }, [activeDocumentId, activeDocument, updateDocument]);
 
   const handleContentChange = useCallback((content: string) => {
     if (!activeDocumentId) return;
+    updateDocument(activeDocumentId, { content });
+  }, [activeDocumentId, updateDocument]);
 
-    setLocalDocuments((docs) =>
-      docs.map((doc) =>
-        doc.id === activeDocumentId ? { ...doc, content } : doc
-      )
-    );
-  }, [activeDocumentId]);
+  const handleAddDocument = async () => {
+    const doc = await addDocument("New Section");
+    if (doc) {
+      setActiveDocumentId(doc.id);
+    }
+  };
 
-  if (!project) {
+  const handleDeleteDocument = async (docId: string) => {
+    if (!confirm("Are you sure you want to delete this section?")) return;
+    
+    const success = await deleteDocument(docId);
+    if (success && activeDocumentId === docId) {
+      // Select another document
+      const remaining = project?.documents?.filter((d) => d.id !== docId);
+      setActiveDocumentId(remaining?.[0]?.id || null);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-slate-500">Project not found</p>
+        <Loader2 className="h-8 w-8 animate-spin text-ocean" />
+      </div>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4">
+        <p className="text-slate-500">{error || "Project not found"}</p>
+        <Button variant="outline" asChild>
+          <Link href="/">Back to dashboard</Link>
+        </Button>
       </div>
     );
   }
@@ -99,7 +133,9 @@ export default function ProjectPage() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h2 className="font-semibold text-slate-900">{project.name}</h2>
-                <p className="text-sm text-slate-500">{project.funder}</p>
+                {project.funder && (
+                  <p className="text-sm text-slate-500">{project.funder}</p>
+                )}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -110,6 +146,7 @@ export default function ProjectPage() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem>Rename</DropdownMenuItem>
                   <DropdownMenuItem>Change status</DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -139,20 +176,11 @@ export default function ProjectPage() {
           {/* Document list */}
           <div className="flex-1 overflow-y-auto p-4">
             <DocumentList
-              documents={localDocuments}
+              documents={project.documents || []}
               activeDocumentId={activeDocumentId}
               onSelectDocument={setActiveDocumentId}
-              onAddDocument={() => {
-                const newDoc: Document = {
-                  id: `doc-new-${Date.now()}`,
-                  projectId,
-                  title: "New Section",
-                  content: "",
-                  sortOrder: localDocuments.length,
-                };
-                setLocalDocuments([...localDocuments, newDoc]);
-                setActiveDocumentId(newDoc.id);
-              }}
+              onAddDocument={handleAddDocument}
+              onDeleteDocument={handleDeleteDocument}
             />
           </div>
         </aside>

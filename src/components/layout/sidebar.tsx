@@ -6,13 +6,12 @@ import {
   FolderOpen,
   Plus,
   BookOpen,
-  FileText,
-  ChevronRight,
   Home,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { mockProjects, mockKnowledgeFiles } from "@/lib/mock-data";
+import { useProjects } from "@/hooks";
 
 interface SidebarProps {
   className?: string;
@@ -20,9 +19,13 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
+  const { projects, loading } = useProjects();
 
   const isActive = (path: string) => pathname === path;
   const isProjectActive = (id: string) => pathname.startsWith(`/projects/${id}`);
+
+  // Count ready files (would come from a hook in real implementation)
+  const knowledgeFilesCount = 0; // TODO: Get from useKnowledgeFiles hook
 
   return (
     <aside
@@ -65,23 +68,33 @@ export function Sidebar({ className }: SidebarProps) {
             </Button>
           </div>
 
-          <nav className="space-y-1">
-            {mockProjects.map((project) => (
-              <Link
-                key={project.id}
-                href={`/projects/${project.id}`}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                  isProjectActive(project.id)
-                    ? "bg-ocean/10 text-ocean"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                )}
-              >
-                <FolderOpen className="h-4 w-4 shrink-0" />
-                <span className="truncate">{project.name}</span>
-              </Link>
-            ))}
-          </nav>
+          {loading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            </div>
+          ) : projects.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-slate-400">
+              No projects yet
+            </p>
+          ) : (
+            <nav className="space-y-1">
+              {projects.map((project) => (
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                    isProjectActive(project.id)
+                      ? "bg-ocean/10 text-ocean"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  )}
+                >
+                  <FolderOpen className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{project.name}</span>
+                </Link>
+              ))}
+            </nav>
+          )}
         </div>
 
         {/* Knowledge Base Section */}
@@ -105,9 +118,11 @@ export function Sidebar({ className }: SidebarProps) {
               <BookOpen className="h-4 w-4" />
               <span>Documents</span>
             </div>
-            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
-              {mockKnowledgeFiles.filter((f) => f.status === "ready").length}
-            </span>
+            {knowledgeFilesCount > 0 && (
+              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
+                {knowledgeFilesCount}
+              </span>
+            )}
           </Link>
         </div>
       </div>
