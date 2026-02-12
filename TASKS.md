@@ -7,24 +7,24 @@
 ## Phase 1: Foundation ⏳
 
 ### Supabase Setup
-- [ ] Create Supabase project
-- [ ] Run initial schema migration
-- [ ] Enable RLS policies
-- [ ] Create storage bucket
-- [ ] Generate TypeScript types
-- [ ] Add Supabase clients (browser + server)
+- [ ] Create Supabase project *(manual - do in dashboard)*
+- [x] Run initial schema migration *(SQL ready in /supabase/migrations)*
+- [x] Enable RLS policies *(SQL ready)*
+- [ ] Create storage bucket *(manual - do in dashboard)*
+- [x] Generate TypeScript types
+- [x] Add Supabase clients (browser + server)
 
 ### Authentication
-- [ ] Install `@supabase/ssr`
-- [ ] Create auth middleware
-- [ ] Build login page
+- [x] Install `@supabase/ssr`
+- [x] Create auth middleware
+- [x] Build login page
 - [ ] Build signup page (or admin-only invite)
-- [ ] Add logout functionality
-- [ ] Protected route wrapper
+- [x] Add logout functionality
+- [x] Protected route wrapper
 - [ ] User profile page
 
 ### Layout Updates
-- [ ] Replace mock user in header with real user
+- [x] Replace mock user in header with real user
 - [ ] Handle loading states
 - [ ] Handle auth redirects
 
