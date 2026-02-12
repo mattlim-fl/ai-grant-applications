@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Anchor, Menu, Settings, ChevronDown, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useUser } from "@/hooks/use-user";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -16,6 +18,19 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
+  const router = useRouter();
+  const { user, profile, loading, signOut } = useUser();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
+  // Get display name and initials
+  const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
+  const initials = displayName.charAt(0).toUpperCase();
+
   return (
     <header className="sticky top-0 z-50 h-14 border-b border-slate-200 bg-white">
       <div className="flex h-full items-center justify-between px-4">
@@ -47,11 +62,11 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2 text-slate-700">
+              <Button variant="ghost" className="gap-2 text-slate-700" disabled={loading}>
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ocean/10 text-sm font-medium text-ocean">
-                  M
+                  {initials}
                 </div>
-                <span className="hidden sm:inline">Mike</span>
+                <span className="hidden sm:inline">{displayName}</span>
                 <ChevronDown className="h-4 w-4 text-slate-400" />
               </Button>
             </DropdownMenuTrigger>
@@ -65,7 +80,10 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600">
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={handleSignOut}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Log out
               </DropdownMenuItem>
